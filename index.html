@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Hermes Agent v0.1–v0.20 核心升级演进报告" />
+  <title>Hermes Evolution — v0.1 → v0.20</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07090d;
+      --panel: #0d1118;
+      --panel-2: #111721;
+      --text: #f3f6fb;
+      --dim: #9aa5b5;
+      --muted: #687385;
+      --line: rgba(255,255,255,.09);
+      --green: #8bf0bd;
+      --blue: #79b8ff;
+      --violet: #b59cff;
+      --gold: #f3c979;
+      --accent: var(--green);
+      --max: 1220px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--bg); }
+    body { margin: 0; background: var(--bg); color: var(--text); min-width: 320px; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; }
+    ::selection { background: rgba(139,240,189,.24); }
+
+    .ambient {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+      background:
+        radial-gradient(800px 520px at 6% -4%, rgba(121,184,255,.13), transparent 62%),
+        radial-gradient(760px 520px at 96% 2%, rgba(139,240,189,.10), transparent 66%);
+    }
+    .ambient::after {
+      content: ""; position: absolute; inset: 0; opacity: .22;
+      background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+    }
+    .shell { position: relative; z-index: 1; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--line);
+      background: rgba(7,9,13,.78); backdrop-filter: blur(18px) saturate(1.2);
+    }
+    .topbar-inner {
+      width: min(var(--max), calc(100% - 40px)); height: 60px; margin: auto;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: 13px; font-weight: 720; letter-spacing: .12em; }
+    .brand-mark { width: 25px; height: 25px; border: 1px solid rgba(139,240,189,.7); border-radius: 50%; display: grid; place-items: center; color: var(--green); box-shadow: 0 0 22px rgba(139,240,189,.16); }
+    .brand-mark svg { width: 14px; }
+    .top-meta { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .live-dot { display: inline-flex; align-items: center; gap: 7px; color: var(--dim); }
+    .live-dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px var(--green); }
+
+    main { width: min(var(--max), calc(100% - 40px)); margin: auto; }
+    .hero { min-height: 680px; padding: 105px 0 76px; display: grid; grid-template-columns: 1.35fr .65fr; gap: 76px; align-items: end; border-bottom: 1px solid var(--line); }
+    .eyebrow { display: flex; align-items: center; gap: 11px; color: var(--green); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 28px; }
+    .eyebrow::before { content: ""; width: 31px; height: 1px; background: currentColor; }
+    h1 { margin: 0; font-size: clamp(68px, 10vw, 132px); line-height: .82; letter-spacing: -.075em; font-weight: 760; }
+    h1 .thin { display: block; color: transparent; -webkit-text-stroke: 1px rgba(243,246,251,.42); font-weight: 500; }
+    .hero-copy { margin: 35px 0 0; max-width: 640px; color: var(--dim); font-size: 17px; line-height: 1.8; }
+    .hero-copy strong { color: var(--text); font-weight: 620; }
+    .hero-side { padding-bottom: 7px; }
+    .version-jump { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; margin-bottom: 38px; }
+    .version-block { min-width: 0; }
+    .version-num { font: 600 clamp(42px,5vw,64px)/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.08em; }
+    .version-num.latest { color: var(--green); text-shadow: 0 0 30px rgba(139,240,189,.16); }
+    .version-caption { margin-top: 9px; color: var(--muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
+    .arrow { color: var(--muted); font-size: 22px; }
+    .hero-stats { border-top: 1px solid var(--line); }
+    .hero-stat { padding: 16px 0; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); }
+    .hero-stat span { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .hero-stat b { font: 580 17px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .chapter-strip { padding: 46px 0 42px; border-bottom: 1px solid var(--line); }
+    .section-label { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; gap: 20px; }
+    .section-label h2 { font-size: 12px; margin: 0; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); font-weight: 650; }
+    .section-label p { margin: 0; color: var(--muted); font-size: 11px; }
+    .chapters { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .chapter { border: 1px solid var(--line); padding: 18px; background: rgba(255,255,255,.018); cursor: pointer; transition: .22s ease; text-align: left; color: inherit; min-height: 115px; }
+    .chapter:hover, .chapter.active { border-color: color-mix(in srgb, var(--chapter) 58%, transparent); background: color-mix(in srgb, var(--chapter) 8%, transparent); transform: translateY(-2px); }
+    .chapter-top { display: flex; justify-content: space-between; color: var(--muted); font: 500 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+    .chapter h3 { margin: 28px 0 7px; font-size: 16px; }
+    .chapter p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .controls { position: sticky; top: 60px; z-index: 18; margin: 0 -1px; padding: 18px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; background: linear-gradient(var(--bg) 72%, rgba(7,9,13,.72)); }
+    .filter-row { display: flex; gap: 7px; flex-wrap: wrap; }
+    .filter { border: 1px solid var(--line); background: var(--panel); color: var(--dim); padding: 8px 12px; border-radius: 999px; font-size: 11px; cursor: pointer; transition: .2s ease; }
+    .filter:hover, .filter.active { color: var(--text); border-color: rgba(139,240,189,.46); background: rgba(139,240,189,.08); }
+    .counter { color: var(--muted); font: 500 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; white-space: nowrap; }
+
+    .timeline { padding: 13px 0 100px; }
+    .version-card {
+      --card-accent: var(--green); position: relative; display: grid; grid-template-columns: 168px 1fr 1.1fr; gap: 38px;
+      border-top: 1px solid var(--line); padding: 38px 0 41px; transition: background .25s ease, opacity .25s ease, transform .25s ease;
+    }
+    .version-card:last-child { border-bottom: 1px solid var(--line); }
+    .version-card::before { content: ""; position: absolute; left: 0; top: -1px; height: 1px; width: 0; background: var(--card-accent); transition: width .35s ease; }
+    .version-card:hover::before { width: 100%; }
+    .version-card.hidden { display: none; }
+    .version-card.current { background: linear-gradient(90deg, rgba(139,240,189,.055), transparent 68%); }
+    .v-head { position: relative; }
+    .v-number { font: 650 42px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.075em; color: var(--card-accent); }
+    .v-date { margin-top: 12px; color: var(--muted); font: 500 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .v-stage { display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; padding: 5px 8px; border: 1px solid color-mix(in srgb, var(--card-accent) 30%, transparent); color: var(--card-accent); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+    .v-stage::before { content: ""; width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
+    .v-main h3 { margin: 0 0 12px; font-size: 25px; letter-spacing: -.035em; }
+    .v-main p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.75; max-width: 510px; }
+    .delta { margin-top: 21px; padding-left: 13px; border-left: 1px solid var(--card-accent); color: var(--text); font-size: 12px; line-height: 1.65; }
+    .v-details { display: grid; grid-template-columns: 1fr; gap: 9px; align-content: start; }
+    .change { position: relative; padding: 0 0 0 18px; color: #cbd3df; font-size: 12px; line-height: 1.55; }
+    .change::before { content: "+"; position: absolute; left: 0; top: 0; color: var(--card-accent); font: 600 12px/1.55 ui-monospace, monospace; }
+    .source-link { margin-top: 14px; width: max-content; max-width: 100%; color: var(--muted); font: 500 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; border-bottom: 1px solid var(--line); padding-bottom: 3px; transition: .2s ease; }
+    .source-link:hover { color: var(--card-accent); border-color: var(--card-accent); }
+    .note { margin-top: 10px; color: #7e8999; font-size: 10px; line-height: 1.6; max-width: 440px; }
+
+    .summary { padding: 86px 0 88px; border-top: 1px solid var(--line); display: grid; grid-template-columns: .9fr 1.1fr; gap: 60px; }
+    .summary h2 { margin: 0; font-size: clamp(38px,5vw,58px); letter-spacing: -.06em; line-height: .98; }
+    .summary h2 span { display: block; color: var(--green); }
+    .summary-grid { display: grid; grid-template-columns: repeat(2,1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+    .summary-item { min-height: 155px; padding: 23px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .summary-item b { color: var(--green); font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .summary-item h3 { margin: 20px 0 9px; font-size: 16px; }
+    .summary-item p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+
+    footer { border-top: 1px solid var(--line); }
+    .footer-inner { width: min(var(--max), calc(100% - 40px)); margin: auto; padding: 28px 0 42px; display: flex; justify-content: space-between; gap: 24px; color: var(--muted); font-size: 10px; line-height: 1.7; }
+    .footer-inner a { color: var(--dim); border-bottom: 1px solid var(--line); }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; gap: 54px; padding-top: 80px; }
+      .hero-side { max-width: 540px; }
+      .chapters { grid-template-columns: repeat(2,1fr); }
+      .version-card { grid-template-columns: 120px 1fr; gap: 28px; }
+      .v-details { grid-column: 2; }
+      .summary { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .top-meta > span:first-child { display: none; }
+      main, .topbar-inner, .footer-inner { width: min(100% - 28px, var(--max)); }
+      .hero { padding: 70px 0 58px; }
+      h1 { font-size: clamp(62px, 22vw, 96px); }
+      .hero-copy { font-size: 15px; }
+      .chapters { grid-template-columns: 1fr; }
+      .chapter { min-height: 96px; }
+      .chapter h3 { margin-top: 20px; }
+      .controls { align-items: flex-start; }
+      .counter { padding-top: 9px; }
+      .version-card { grid-template-columns: 1fr; padding: 32px 0; gap: 22px; }
+      .v-details { grid-column: 1; }
+      .v-head { display: grid; grid-template-columns: auto 1fr; column-gap: 18px; align-items: center; }
+      .v-date { margin-top: 0; }
+      .v-stage { grid-column: 1 / -1; width: max-content; margin-top: 13px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .footer-inner { flex-direction: column; }
+    }
+    @media print {
+      :root { color-scheme: light; --bg: white; --panel: white; --text: #111; --dim: #333; --muted: #666; --line: #ddd; }
+      .ambient, .topbar, .controls, .chapter-strip { display: none; }
+      main { width: 100%; }
+      .hero { min-height: auto; padding: 32px 0; }
+      .version-card { break-inside: avoid; }
+      .source-link { color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient"></div>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#top" aria-label="返回顶部">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M7 4v16M17 4v16M7 9h10M7 15h10M4 6h6M14 6h6M4 18h6M14 18h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          HERMES EVOLUTION
+        </a>
+        <div class="top-meta"><span>2025.07 — 2026.08</span><span class="live-dot">v0.20</span></div>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div>
+          <div class="eyebrow">Product evolution report</div>
+          <h1>v0.1 <span class="thin">→ v0.20</span></h1>
+          <p class="hero-copy">Hermes 用一年时间，从一个<strong>会调用工具的命令行 Agent</strong>，进化为具备记忆、技能、多 Agent 协作、桌面工作台、语音和 A2A 的<strong>个人智能基础设施</strong>。</p>
+        </div>
+        <aside class="hero-side" aria-label="演进概览">
+          <div class="version-jump">
+            <div class="version-block"><div class="version-num">0.1</div><div class="version-caption">Tool Agent</div></div>
+            <div class="arrow">→</div>
+            <div class="version-block"><div class="version-num latest">0.20</div><div class="version-caption">Agent Platform</div></div>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat"><span>主版本</span><b>20</b></div>
+            <div class="hero-stat"><span>演进阶段</span><b>04</b></div>
+            <div class="hero-stat"><span>官方 Release</span><b>19</b></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="chapter-strip" aria-labelledby="chapters-title">
+        <div class="section-label"><h2 id="chapters-title">四段式演进</h2><p>点击阶段，快速聚焦对应版本</p></div>
+        <div class="chapters" id="chapters"></div>
+      </section>
+
+      <div class="controls" aria-label="版本筛选">
+        <div class="filter-row" id="filters">
+          <button class="filter active" data-filter="all">全部版本</button>
+          <button class="filter" data-filter="foundation">能力地基</button>
+          <button class="filter" data-filter="operate">运行扩展</button>
+          <button class="filter" data-filter="autonomy">自主协作</button>
+          <button class="filter" data-filter="surface">产品化界面</button>
+        </div>
+        <div class="counter" id="counter">20 / 20</div>
+      </div>
+
+      <section class="timeline" id="timeline" aria-label="Hermes 版本时间线"></section>
+
+      <section class="summary">
+        <div><div class="eyebrow">The transformation</div><h2>不是功能堆叠，<span>是能力层级跃迁。</span></h2></div>
+        <div class="summary-grid">
+          <div class="summary-item"><b>01</b><h3>执行</h3><p>终端、浏览器、视觉与工具调用，让模型真正进入工作环境。</p></div>
+          <div class="summary-item"><b>02</b><h3>持续</h3><p>记忆、Skills、Cron、Profiles，让能力跨会话、跨平台保留。</p></div>
+          <div class="summary-item"><b>03</b><h3>协作</h3><p>Subagents、Kanban、Goals 与验证证据，让复杂任务可以拆解闭环。</p></div>
+          <div class="summary-item"><b>04</b><h3>平台</h3><p>Desktop、Plugins、Voice、Webhooks 与 A2A，让 Hermes 接入更大系统。</p></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>内容依据 Hermes Agent 官方 GitHub Release 与公开仓库历史整理。<br />v0.1 为版本化之前的开发阶段归纳，不是官方发布标签。</div>
+        <div><a href="https://github.com/NousResearch/hermes-agent/releases" target="_blank" rel="noreferrer">查看全部官方 Releases ↗</a></div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const versions = [
+      {v:'0.1',date:'2025.07 — 2026.02',title:'从工具型 Agent 起步',stage:'foundation',stageLabel:'能力地基',summary:'先把“模型会调用真实工具”做成可工作的 Agent：终端、网页、视觉、图像与多模型协作逐步落地。',delta:'从聊天模型，变成能在真实环境中执行任务的工具型 Agent。',highlights:['终端执行与交互','网页抓取 / 浏览器自动化','视觉分析与图像生成','Mixture-of-Agents 与轨迹保存'],source:'https://github.com/NousResearch/hermes-agent',sourceLabel:'仓库早期提交记录',note:'官方版本化从 v0.2.0 开始；此处将 v0.2 之前的公开开发阶段归为 v0.1。'},
+      {v:'0.2',date:'2026.03.12',title:'完整个人 Agent 形态',stage:'foundation',stageLabel:'能力地基',summary:'Hermes 从单机工具集跃迁为可长期使用的个人 Agent，补齐消息入口、记忆、技能、调度与编辑器接入。',delta:'从“能做事”，升级为“能跨平台、跨会话持续工作”。',highlights:['Telegram / Discord / Slack / WhatsApp 等统一 Gateway','70+ Skills 与 Skills Hub','MCP + ACP 编辑器接入','Git Worktree 隔离与文件回滚'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.12',sourceLabel:'v0.2.0 Release'},
+      {v:'0.3',date:'2026.03.17',title:'实时、可扩展、可并行',stage:'foundation',stageLabel:'能力地基',summary:'统一流式输出并开放插件架构，Agent 可以并行调用工具，也开始具备语音和更细致的安全控制。',delta:'从封闭产品，升级为实时响应、可插拔的 Agent 平台。',highlights:['全端统一流式输出','一等插件架构','原生 Anthropic Provider','并发工具调用与 Smart Approvals'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.17',sourceLabel:'v0.3.0 Release'},
+      {v:'0.4',date:'2026.03.23',title:'服务化与开放接入',stage:'foundation',stageLabel:'能力地基',summary:'新增 OpenAI 兼容 API、更多消息平台与 MCP 管理，让 Hermes 能作为服务被编辑器、应用和自动化系统调用。',delta:'从终端应用，升级为可以对外提供能力的 Agent 服务。',highlights:['OpenAI-compatible API Server','6 个新消息平台','@file / @url 上下文引用','MCP 管理 CLI 与 OAuth 2.1'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.23',sourceLabel:'v0.4.0 Release'},
+      {v:'0.5',date:'2026.03.28',title:'模型规模与供应链加固',stage:'foundation',stageLabel:'能力地基',summary:'模型选择扩张到数百个，同时补齐 Hugging Face、插件生命周期和依赖供应链防护。',delta:'从有限模型接入，升级为广泛模型生态与可治理运行时。',highlights:['Nous Portal 400+ 模型','Hugging Face 一等 Provider','插件生命周期 Hook 正式启用','依赖锁定、CVE 与供应链扫描'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.28',sourceLabel:'v0.5.0 Release'},
+      {v:'0.6',date:'2026.03.30',title:'多实例与企业消息入口',stage:'operate',stageLabel:'运行扩展',summary:'Profiles 让一套安装可以运行多个完全隔离的 Hermes；飞书、企业微信与容器能力进入主线。',delta:'从单 Agent，升级为可隔离运行的多实例 Agent 系统。',highlights:['Profiles 多实例隔离','Hermes MCP Server Mode','官方 Docker 容器','飞书 / Lark 与企业微信接入'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.30',sourceLabel:'v0.6.0 Release'},
+      {v:'0.7',date:'2026.04.03',title:'记忆、浏览器与安全插件化',stage:'operate',stageLabel:'运行扩展',summary:'记忆后端变为可替换接口，引入反检测浏览器、凭证池和内联 Diff，生产可靠性显著提高。',delta:'从固定内核，升级为记忆与运行能力均可替换的体系。',highlights:['可插拔 Memory Provider','同 Provider 多凭证自动轮换','Camofox 反检测浏览器','文件修改内联 Diff 预览'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.3',sourceLabel:'v0.7.0 Release'},
+      {v:'0.8',date:'2026.04.08',title:'长任务真正跑得住',stage:'operate',stageLabel:'运行扩展',summary:'后台进程通知、运行中切换模型、基于活动的超时和原生审批按钮，解决长任务易中断、难干预的问题。',delta:'从一次性执行，升级为可观察、可干预的长任务运行。',highlights:['后台进程自动通知','运行中切换模型','按活动判断超时','Slack / Telegram 原生审批按钮'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.8',sourceLabel:'v0.8.0 Release'},
+      {v:'0.9',date:'2026.04.13',title:'从 CLI 走向可视化管理',stage:'operate',stageLabel:'运行扩展',summary:'本地 Web Dashboard 首次出现，Android、iMessage、微信等入口扩张，Hermes 开始覆盖更多终端与设备。',delta:'从命令行管理，升级为有可视化控制面的跨设备 Agent。',highlights:['本地 Web Dashboard','Fast Mode','iMessage / 微信接入','Termux / Android 原生运行'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.13',sourceLabel:'v0.9.0 Release'},
+      {v:'0.10',date:'2026.04.16',title:'订阅即工具',stage:'operate',stageLabel:'运行扩展',summary:'Nous Portal 订阅首次直接承载搜索、图片、语音和浏览器能力，用户不再为每个工具分别准备 API Key。',delta:'从“逐项配置工具”，升级为“一个订阅直接获得工具栈”。',highlights:['Nous Tool Gateway','订阅直通 Web Search','订阅直通 Image / TTS','Browser Automation 零额外 Key'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.16',sourceLabel:'v0.10.0 Release'},
+      {v:'0.11',date:'2026.04.23',title:'新 TUI 与传输层重构',stage:'autonomy',stageLabel:'自主协作',summary:'React/Ink TUI 重写交互面，Transport ABC 解耦模型协议；/steer 和编排型子 Agent 提升运行中控制力。',delta:'从界面与协议耦合，升级为可扩展传输层和现代交互面。',highlights:['React / Ink 新 TUI','Transport ABC + AWS Bedrock','/steer 运行中引导','Orchestrator 子 Agent'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.23',sourceLabel:'v0.11.0 Release'},
+      {v:'0.12',date:'2026.04.30',title:'自我改进闭环',stage:'autonomy',stageLabel:'自主协作',summary:'Curator 在后台维护技能，自我复盘不再只是概念；Gateway 也转为插件宿主，能力继续向边缘扩展。',delta:'从使用技能，升级为 Agent 自主维护并改进技能。',highlights:['Autonomous Curator','后台 Self-improvement Loop','技能生态大扩展','可插拔 Gateway + Teams'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.4.30',sourceLabel:'v0.12.0 Release'},
+      {v:'0.13',date:'2026.05.07',title:'Durable Multi-Agent',stage:'autonomy',stageLabel:'自主协作',summary:'多 Agent Kanban、持久目标和重启恢复共同解决“派出去但做不完”的问题，协作开始具备持续性。',delta:'从临时委派，升级为能追踪、接管、重试并完成的 AI 团队。',highlights:['Durable Multi-Agent Kanban','/goal 持久目标','会话跨重启恢复','Checkpoints v2 与写后语法检查'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.7',sourceLabel:'v0.13.0 Release'},
+      {v:'0.14',date:'2026.05.16',title:'安装更轻、运行更快、覆盖 Windows',stage:'autonomy',stageLabel:'自主协作',summary:'PyPI 和 Windows 原生支持降低安装门槛，冷启动与浏览器执行显著加速，并新增 OAuth 本地代理。',delta:'从开发者项目，升级为跨平台、可分发的成熟应用。',highlights:['Windows 原生 Early Beta','PyPI：pip install 即用','冷启动减少约 19 秒','OAuth Provider 的 OpenAI-compatible Proxy'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.16',sourceLabel:'v0.14.0 Release'},
+      {v:'0.15',date:'2026.05.28',title:'核心瘦身，协作提速',stage:'autonomy',stageLabel:'自主协作',summary:'核心 Agent Loop 大规模模块化，Kanban 进入成熟期，session_search 改为本地检索，速度与成本同步改善。',delta:'从能力堆叠，升级为更清晰、更快、更可维护的 Agent 内核。',highlights:['run_agent.py 16k → 3.8k 行','Kanban Swarm 与任务树','session_search 快约 4,500×','Bitwarden Secrets Manager'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.28',sourceLabel:'v0.15.0 Release'},
+      {v:'0.16',date:'2026.06.05',title:'Hermes 有了真正的桌面界面',stage:'surface',stageLabel:'产品化界面',summary:'Electron Desktop 首次发布，Dashboard 升级为完整管理后台，Hermes 从 CLI 产品进入桌面产品阶段。',delta:'从多种命令行入口，升级为原生桌面工作界面。',highlights:['macOS / Linux / Windows Desktop','远程 Gateway 登录','完整 Web Admin Panel','桌面端简体中文'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.6.5',sourceLabel:'v0.16.0 Release'},
+      {v:'0.17',date:'2026.06.19',title:'异步委派与自动化蓝图',stage:'surface',stageLabel:'产品化界面',summary:'子 Agent 转为后台运行，主会话可以继续工作；桌面监控、自动化蓝图和可视化 Profile Builder 补齐运营体验。',delta:'从阻塞式协作，升级为持续工作的异步 Agent 网络。',highlights:['Background / Async Subagents','桌面 Subagent Watch Window','Automation Blueprints','Dashboard Profile Builder'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.6.19',sourceLabel:'v0.17.0 Release'},
+      {v:'0.18',date:'2026.07.01',title:'会判断，也会证明',stage:'surface',stageLabel:'产品化界面',summary:'MoA 成为一等模型，编码任务必须留下验证证据；/learn 和 /journey 让学习过程变得显式、可查看。',delta:'从“声称完成”，升级为“用证据证明完成”。',highlights:['Mixture-of-Agents 一等模型','自动验证与完成证据','/learn 生成可复用 Skill','/journey 学习时间线'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.7.1',sourceLabel:'v0.18.0 Release'},
+      {v:'0.19',date:'2026.07.20',title:'全链路加速与可靠交付',stage:'surface',stageLabel:'产品化界面',summary:'首轮响应和 Desktop 性能显著提升，Smart Approvals 默认启用，后台委派具备实时日志与可靠投递。',delta:'从“功能强”，升级为“响应快、交付稳、过程可见”。',highlights:['初始化约 4.3s → 0.9s','Desktop 20+ 项性能优化','Smart Approvals 默认启用','Subagent Live Transcripts + 可靠投递账本'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.7.20',sourceLabel:'v0.19.0 Release'},
+      {v:'0.20',date:'2026.08.03',title:'会说、会互联、会引用',stage:'surface',stageLabel:'产品化界面',summary:'实时对话语音、A2A、签名 Webhook 与可核验引用成为主线；Desktop 进一步变成 Artifact 与插件承载平台。',delta:'从个人 Agent 平台，升级为可自然交互、可系统互联的智能工作台。',highlights:['流式语音、打断与本地唤醒词','Grounded Citations / Fact-checking','A2A v1.0 + Signed Webhooks','Artifacts、Desktop Plugin SDK 与 CLI Power Commands'],source:'https://github.com/NousResearch/hermes-agent/releases/tag/v2026.8.3',sourceLabel:'v0.20.0 Release'}
+    ];
+
+    const stages = {
+      foundation: { color: '#79b8ff', range: 'v0.1 — v0.5', title: '能力地基', copy: '工具调用、Gateway、插件与模型生态' },
+      operate: { color: '#8bf0bd', range: 'v0.6 — v0.10', title: '运行扩展', copy: 'Profiles、记忆、长任务与管理面' },
+      autonomy: { color: '#b59cff', range: 'v0.11 — v0.15', title: '自主协作', copy: '自我改进、目标、Kanban 与多 Agent' },
+      surface: { color: '#f3c979', range: 'v0.16 — v0.20', title: '产品化界面', copy: 'Desktop、验证、语音、A2A 与工作台' }
+    };
+
+    const timeline = document.querySelector('#timeline');
+    const chapters = document.querySelector('#chapters');
+    const counter = document.querySelector('#counter');
+    const escapeHTML = s => String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+    function cardTemplate(item) {
+      const color = stages[item.stage].color;
+      return `<article class="version-card ${item.v === '0.20' ? 'current' : ''}" data-stage="${item.stage}" id="v${item.v.replace('.','-')}" style="--card-accent:${color}">
+        <div class="v-head">
+          <div class="v-number">v${escapeHTML(item.v)}</div>
+          <div class="v-date">${escapeHTML(item.date)}</div>
+          <div class="v-stage">${escapeHTML(item.stageLabel)}</div>
+        </div>
+        <div class="v-main">
+          <h3>${escapeHTML(item.title)}</h3>
+          <p>${escapeHTML(item.summary)}</p>
+          <div class="delta">${escapeHTML(item.delta)}</div>
+        </div>
+        <div class="v-details">
+          ${item.highlights.map(x => `<div class="change">${escapeHTML(x)}</div>`).join('')}
+          <a class="source-link" href="${item.source}" target="_blank" rel="noreferrer">${escapeHTML(item.sourceLabel)} ↗</a>
+          ${item.note ? `<div class="note">注：${escapeHTML(item.note)}</div>` : ''}
+        </div>
+      </article>`;
+    }
+
+    timeline.innerHTML = versions.map(cardTemplate).join('');
+    chapters.innerHTML = Object.entries(stages).map(([key, s], index) => `<button class="chapter" data-stage="${key}" style="--chapter:${s.color}">
+      <div class="chapter-top"><span>0${index + 1}</span><span>${s.range}</span></div>
+      <h3>${s.title}</h3><p>${s.copy}</p>
+    </button>`).join('');
+
+    function applyFilter(stage) {
+      let visible = 0;
+      document.querySelectorAll('.version-card').forEach(card => {
+        const show = stage === 'all' || card.dataset.stage === stage;
+        card.classList.toggle('hidden', !show);
+        if (show) visible++;
+      });
+      document.querySelectorAll('.filter').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === stage));
+      document.querySelectorAll('.chapter').forEach(btn => btn.classList.toggle('active', btn.dataset.stage === stage));
+      counter.textContent = `${visible} / ${versions.length}`;
+    }
+
+    document.querySelector('#filters').addEventListener('click', event => {
+      const btn = event.target.closest('.filter');
+      if (!btn) return;
+      applyFilter(btn.dataset.filter);
+      document.querySelector('#timeline').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    chapters.addEventListener('click', event => {
+      const btn = event.target.closest('.chapter');
+      if (!btn) return;
+      applyFilter(btn.dataset.stage);
+      document.querySelector('#timeline').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  </script>
+</body>
+</html>
