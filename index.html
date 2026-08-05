@@ -243,7 +243,7 @@ footer{border-top:1px solid var(--line)}
   });
 
   if(newOnly) newOnly.addEventListener('change',()=>{
-    const active=[...document.querySelectorAll('.filter.active'))[0];
+    const active=[...document.querySelectorAll('.filter.active')][0];
     applyFilter(active ? active.dataset.filter : 'all');
   });
 })();
